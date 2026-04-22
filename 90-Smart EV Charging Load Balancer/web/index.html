@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="EV Charging Station Load Balancer — Simulates dynamic EV charging with priority-based scheduling and real-time visualization.">
+    <title>EV Charging Station Load Balancer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- ---- Network Health Bar ---- -->
+    <section id="network-health-bar" style="background: rgba(30,41,59,0.9); border-bottom: 1px solid rgba(59,130,246,0.3); padding: 0.5rem 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span style="font-weight: 600; color: #f1f5f9;">🔧 Network Maintenance Summary</span>
+                <span id="capacity-alert" class="badge badge-error capacity-alert" style="display:none; font-size: 0.75rem; padding: 0.2rem 0.5rem;">⚠️ >50% OFFLINE</span>
+            </div>
+            <div style="display: flex; gap: 2rem; font-size: 0.85rem;">
+                <span><span style="color: #94a3b8; margin-right: 0.4rem;">Avg Health:</span><strong id="avg-health-pct" style="color: #f1f5f9;">100.0%</strong></span>
+                <span><span style="color: #94a3b8; margin-right: 0.4rem;">Downtime Ticks:</span><strong id="val-downtime-ticks" style="color: #f1f5f9;">0</strong></span>
+                <span><span style="color: #94a3b8; margin-right: 0.4rem;">Offline Cap:</span><strong id="val-offline-capacity" style="color: #f1f5f9;">0%</strong></span>
+            </div>
+        </div>
+    </section>
+    <!-- ==================== HEADER ==================== -->
+    <header id="main-header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <div class="logo-text">
+                    <h1>EV Load Balancer</h1>
+                    <span class="tagline">Priority-Queue Charging Scheduler</span>
+                </div>
+            </div>
+        </div>
+        <div class="header-center">
+            <div class="time-display" id="time-display">
+                <span class="time-label">TIME STEP</span>
+                <span class="time-value" id="current-tick">0</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="btn-tick" class="btn btn-primary" onclick="advanceTick()">
+                <span class="btn-icon">▶</span>
+                Next Time Step
+            </button>
+            <button id="btn-auto" class="btn btn-secondary" onclick="toggleAutoPlay()">
+                <span class="btn-icon" id="auto-icon">⏯</span>
+                <span id="auto-label">Auto Play</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main>
+        <!-- ---- Stats Bar ---- -->
+        <section id="stats-bar">
+            <div class="stat-card">
+                <span class="stat-icon">🔋</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="stat-charging">0</span>
+                    <span class="stat-label">Charging</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">⏳</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="stat-queue">0</span>
+                    <span class="stat-label">In Queue</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">✅</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="stat-completed">0</span>
+                    <span class="stat-label">Completed</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">📊</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="stat-avg-wait">0.0</span>
+                    <span class="stat-label">Avg Wait</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-icon">📈</span>
+                <div class="stat-info">
+                    <span class="stat-value" id="stat-peak">0</span>
+                    <span class="stat-label">Peak Queue</span>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ---- Grid Load Indicator ---- -->
+        <section id="grid-load-bar">
+            <div class="grid-load-card">
+                <div class="grid-load-header">
+                    <span class="grid-load-title">⚡ Power Grid Status</span>
+                    <span class="grid-load-time" id="grid-hour">Hour 0/24</span>
+                </div>
+                <div class="grid-load-meter">
+                    <div class="grid-load-fill" id="grid-load-fill" style="width: 20%"></div>
+                </div>
+                <div class="grid-load-details">
+                    <span class="grid-detail">
+                        <span class="grid-detail-label">Grid Load</span>
+                        <span class="grid-detail-value" id="grid-load-pct">20%</span>
+                    </span>
+                    <span class="grid-detail">
+                        <span class="grid-detail-label">Charge Speed</span>
+                        <span class="grid-detail-value" id="grid-speed-pct">100%</span>
+                    </span>
+                    <span class="grid-detail">
+                        <span class="grid-detail-label">Status</span>
+                        <span class="grid-detail-value grid-status" id="grid-status">🟢 Off-Peak</span>
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <div class="content-grid">
+
+            <!-- ---- Left: Add Vehicle Panel ---- -->
+            <aside id="control-panel">
+                <div class="panel-card">
+                    <h2 class="panel-title">
+                        <span class="title-icon">🚗</span>
+                        Add Vehicle
+                    </h2>
+                    <div class="form-group">
+                        <label for="input-vehicle-id">Vehicle ID</label>
+                        <input type="text" id="input-vehicle-id" placeholder="e.g. EV-001" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="input-battery">Battery %</label>
+                        <div class="range-group">
+                            <input type="range" id="input-battery" min="0" max="99" value="30"
+                                   oninput="document.getElementById('battery-val').textContent = this.value + '%'">
+                            <span class="range-value" id="battery-val">30%</span>
+                        </div>
+                    </div>
+                    <button id="btn-add-vehicle" class="btn btn-accent" onclick="addVehicle()">
+                        <span class="btn-icon">➕</span>
+                        Add to Queue
+                    </button>
+                    <div id="add-feedback" class="feedback"></div>
+                </div>
+
+                <!-- Quick Add presets -->
+                <div class="panel-card">
+                    <h2 class="panel-title">
+                        <span class="title-icon">⚡</span>
+                        Quick Add
+                    </h2>
+                    <div class="quick-add-grid">
+                        <button class="btn btn-quick" onclick="quickAdd(10)">🔴 10%</button>
+                        <button class="btn btn-quick" onclick="quickAdd(25)">🟠 25%</button>
+                        <button class="btn btn-quick" onclick="quickAdd(50)">🟡 50%</button>
+                        <button class="btn btn-quick" onclick="quickAdd(75)">🟢 75%</button>
+                    </div>
+                </div>
+
+                <!-- Waiting Queue -->
+                <div class="panel-card queue-panel">
+                    <h2 class="panel-title">
+                        <span class="title-icon">⏳</span>
+                        Waiting Queue
+                        <span class="badge" id="queue-count">0</span>
+                    </h2>
+                    <div id="waiting-queue-list" class="vehicle-list">
+                        <div class="empty-state">No vehicles waiting</div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- ---- Center: Stations Grid ---- -->
+            <section id="stations-area">
+                <h2 class="section-title">
+                    <span class="title-icon">🏭</span>
+                    Charging Stations
+                </h2>
+                <div id="stations-grid" class="stations-grid">
+                    <!-- Dynamically populated -->
+                </div>
+            </section>
+
+            <!-- ---- Right: Carbon + Completed + Log ---- -->
+            <aside id="info-panel">
+                <!-- Carbon Footprint Tracker -->
+                <div class="panel-card carbon-panel">
+                    <h2 class="panel-title">
+                        <span class="title-icon">🌱</span>
+                        Carbon Footprint
+                    </h2>
+                    <div class="carbon-stats">
+                        <div class="carbon-stat-row">
+                            <span class="carbon-label">CO₂ Emitted (Smart)</span>
+                            <span class="carbon-value green" id="carbon-smart">0.00 kg</span>
+                        </div>
+                        <div class="carbon-stat-row">
+                            <span class="carbon-label">CO₂ Emitted (Naive)</span>
+                            <span class="carbon-value red" id="carbon-naive">0.00 kg</span>
+                        </div>
+                        <div class="carbon-divider"></div>
+                        <div class="carbon-stat-row highlight">
+                            <span class="carbon-label">🌍 CO₂ Saved</span>
+                            <span class="carbon-value saved" id="carbon-saved">0.00 kg</span>
+                        </div>
+                        <div class="carbon-stat-row">
+                            <span class="carbon-label">Renewable Energy</span>
+                            <span class="carbon-value" id="renewable-pct">0%</span>
+                        </div>
+                        <div class="carbon-stat-row">
+                            <span class="carbon-label">Total Energy</span>
+                            <span class="carbon-value" id="total-energy">0.0 units</span>
+                        </div>
+                    </div>
+                    <!-- CO2 Comparison Bar -->
+                    <div class="co2-comparison">
+                        <div class="co2-bar-label">Smart Scheduler</div>
+                        <div class="co2-bar-container">
+                            <div class="co2-bar-fill smart" id="co2-bar-smart" style="width: 0%"></div>
+                        </div>
+                        <div class="co2-bar-label">Naive (Round-Robin)</div>
+                        <div class="co2-bar-container">
+                            <div class="co2-bar-fill naive" id="co2-bar-naive" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-card completed-panel">
+                    <h2 class="panel-title">
+                        <span class="title-icon">✅</span>
+                        Completed
+                        <span class="badge badge-success" id="completed-count">0</span>
+                    </h2>
+                    <div id="completed-list" class="vehicle-list">
+                        <div class="empty-state">No vehicles completed yet</div>
+                    </div>
+                </div>
+
+                <div class="panel-card log-panel">
+                    <h2 class="panel-title">
+                        <span class="title-icon">📋</span>
+                        Event Log
+                    </h2>
+                    <div id="event-log" class="event-log">
+                        <div class="log-entry">System initialized. Ready to simulate.</div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <!-- ==================== TOAST NOTIFICATION ==================== -->
+    <div id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
