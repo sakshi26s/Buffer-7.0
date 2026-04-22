@@ -2,6 +2,11 @@
 
 A **time-based simulation** of a dynamic EV charging network with **priority-queue scheduling** and a real-time web dashboard. Vehicles arrive dynamically and are assigned to charging stations using a priority formula with an **aging mechanism** to prevent starvation.
 
+Demo Video
+[Watch the demo video here](https://drive.google.com/file/d/1lchRhSIdXMjUVNeDEzC9T9QaYnS892Lx/view?usp=sharing)
+
+
+
 ![Java](https://img.shields.io/badge/Java-23-orange?style=flat-square)
 ![HTML/CSS/JS](https://img.shields.io/badge/UI-HTML%2FCSS%2FJS-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
